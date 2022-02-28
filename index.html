@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        .chart-container {
+            max-width: 1050px;
+            /* border: 3px solid red; */
+            margin: 0 auto;
+            /* auto centers the div */
+            font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+        }
+
+        svg {
+            /* border: 2px solid purple; */
+            overflow: visible;
+        }
+
+
+        h1 {
+            /* border: 2px solid green; */
+        }
+
+        .pop-up {
+            pointer-events: none;
+            position: absolute;
+            background-color: aliceblue;
+            border-color: gray;
+            font-size: 12;
+            font-family: Verdana, Geneva, Tahoma, sans-serif;
+            width: 150;   
+        }
+    </style>
+    <!-- add your script blocks at the end -->
+
+</head>
+
+<body>
+    <div class="chart-container">
+        <h1 class="headline">
+            Estimate Number of Children Living in Poverty, 2019
+        </h1>
+
+        <svg width="1050px" height="500px">
+
+        </svg>
+    </div>
+    <div class = "pop-up"></div>
+</body>
+
+
+<!-- we're using d3 version 6 (the latest version) for all out work -->
+<script src="https://d3js.org/d3.v6.min.js"></script>
+
+<!-- load topojson script -->
+<script src="https://unpkg.com/topojson@3"></script>
+
+<script>
+    console.log({ d3 })
+    console.log({ topojson })
+
+    // //https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise
+    Promise.all([ //waits for all the data to load, then when loaded will return it all in one array called res
+        d3.json('bubbles_topo.json'),
+    ])
+        .then(ready)
+        .catch((err) => {
+            console.log(err);
+        });
+
+    function ready(res) {
+        console.log(res[0])
+        let raw = res[0]
+
+        let county = topojson.feature(raw, raw.objects.county);
+        let state = topojson.feature(raw, raw.objects.state);
+
+        let width = 1050;
+        let height = 500;
+
+        console.log(county, state)
+
+        let svg = d3.select("body").select("svg")
+
+        let myProjection = d3.geoAlbersUsa()
+            .fitSize([width, height], county)
+
+        //path function
+        let path = d3.geoPath()
+            .projection(myProjection)
+
+        let innerlines = topojson.mesh(raw, raw.objects.state, function (a, b) {
+            return a != b;
+        
+
+
+        
+        });
+
+        
+        svg.append("g")
+            .selectAll(".states")
+            .data(state.features)
+            .join("path")
+            .attr("d", path)
+            .style("fill", "#eee")
+            .style("stroke", "none")
+            .style("pointer-events", "none")
+
+
+        let states = svg
+            .append("path")
+            .attr("d", path(innerlines))
+            .style("fill", "none")
+            .style("stroke", "#333")
+            .style("stroke-width", 1)
+            // .style("user-select", "none")
+            .style("pointer-events", "none")
+
+        // let scaleFunction = D3.scaleSqrt()
+        //     .domain([0,100])
+        //     .range([0, ])
+        
+        let popup = d3.select(".pop-up");
+
+        let counties = svg.append("g")
+            .selectAll(".counties")
+            .data(county.features)
+            .join("circle")
+            // .attr("r", d => scaleFuction(d))
+            // .attr("r", 5)
+            .attr("r",  d => { return d.properties.resized})
+            .attr("cx", d => { return path.centroid(d)[0]})
+            .attr("cy", d => { return path.centroid(d)[1]})
+            .style("fill", "orange")
+            .style("stroke", "#ccc")
+            .style("stroke-width", .2)
+            .attr("class", d => d.properties.GEOID)
+            
+        counties.on("mouseover", (event, d) => {
+            console.log(event)    
+            
+            // Why is the mouseover saying undefined?
+            // It looks like the df is missing data?
+            let lang = "In " + d.properties.Geo_QName + ", there were " + d.properties.pop_18_in_poverty + " children in poverty in 2019."
+
+            popup
+                .style("opacity", 1)
+                .style("left", (event.x - 100) + "px")
+                .style("top", (event.y - 100) + "px")
+                .html(lang)
+
+                svg.select(this)
+                    .style("stroke", "black")
+                    .style("stroke-width", .8)
+                    .style("fill", "black")
+                    .raise()
+
+        //    console.log(event)
+        })
+
+        counties.on("mouseout", (event, d) => {
+            counties
+                .style("stroke", "gray")
+                .style("fill-opacity", 1)
+
+            popup
+                .style("opacity", 0)
+            })
+
+    }
+
+
+</script>
